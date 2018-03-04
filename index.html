@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>Wasm -> JS loop comparison</title>
+  <script>
+    function overrideConsole() {
+      var store = [];
+      var logger = console.log;
+      console.log = function () {
+        store.push(arguments);
+        document.getElementById('console').appendChild(document.createTextNode(arguments[0] + '\n\n'))
+        logger.apply(console, arguments);
+      }
+    }
+   
+    function loopRunner(limit) {
+      limit = limit;
+      var x = 0;
+      for (i = 0; i < limit; i++) {
+        x = x + 2;
+      }
+      return x;
+    }
+    function init() {
+      fetch('add.big.wasm')
+        .then(response => response.arrayBuffer())
+        .then(bytes => WebAssembly.instantiate(bytes, {}))
+        .then(results => {
+          const LOOP_COUNT = 100000000;
+          console.log('Running the loop ' + LOOP_COUNT + ' times');
+          let startTime = Date.now();
+          var y = results.instance.exports.loop_runner(LOOP_COUNT)
+          let endTime = Date.now();
+          console.log('Time Taken by wasm ' + (endTime - startTime) + ' ms\nWASM output : '+ y);
+          startTime = Date.now();
+          var x = loopRunner(LOOP_COUNT);
+          endTime = Date.now();
+          console.log('Time Taken by JS ' + (endTime - startTime) + ' ms\nJS output: ' + x);
+        });
+    }
+    overrideConsole();
+    init();
+    
+  </script>
+</head>
+
+<body>
+
+  <h1>This is an experiment of calling rust methods from JavaScript.</h1>
+  <h2>A simple loop comparison between performance of running loop in Rust(WASM) vs JS</h2>
+  <h4>Check the console and refresh to see WASM magic</h4>
+  <pre>
+// Rust code
+#[no_mangle] 
+pub fn add_one(limit: i32) -> i32 { 
+  let mut x = 0; 
+  for _n in 0..limit { 
+    x = x + 2; 
+  } 
+  return x; 
+}
+  </pre>
+<pre>
+// JS Code
+function loopRunner(limit) { 
+  limit = limit; 
+  var x = 0; 
+  for (i = 0; i < limit; i++) { 
+    x = x + 2; 
+  } 
+  return x; 
+}
+    </pre>
+
+
+    <pre><b>Console :</b></pre>
+    <pre id="console"></pre>
+<br/>
+    <footer>Rust -> Wasm compilation steps can be found at https://www.hellorust.com/demos/add/index.html</footer>
+    <br/>
+    
+    <footer>Generate wasm file from rust: rustc +nightly --target wasm32-unknown-unknown -O --crate-type=cdylib add.rs -o add.big.wasm</footer>
+    
+
+</body>
+
+</html>
